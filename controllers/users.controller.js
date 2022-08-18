@@ -1,42 +1,80 @@
 const { response, request, query } = require('express');
+const User = require('../models/user.model');
+const bcryptjs = require('bcryptjs');
 
-const usersGet = (req = request, res = response) => {
+const usersGet = async(req = request, res = response) => {
+    const {limit = 5, from = 0} = req.query;
+    const query = {status: true};
+   
 
-    const params = req.query;
+    const [total, users] = await Promise.all([
+        User.countDocuments(query),
+        User.find(query)
+    .skip(Number(from))
+    .limit(Number(limit))
+    ]);
+
     res.json({
         ok: true,
-        msg: 'Get api controller',
-        params
+        total,
+        users
     })
 }
 
-const usersPut = (req, res = response) => {
+const usersPut = async(req, res = response) => {
 
-    const id = req.params;
+    const {id} = req.params;
+    const {_id, password, google, email, ...resto}  = req.body;
+
+    
+    if(password){
+        //Encriptar la contraseña
+        const salt = bcryptjs.genSaltSync(10);
+        resto.password = bcryptjs.hashSync(password, salt);
+        
+    }
+    const user = await User.findByIdAndUpdate(id, resto);
+
 
     res.status(400).json({
         ok: true,
-        msg: 'Put api',
-        id
+        user
     });
 };
 
-const usersPost = (req, res = response) => {
+const usersPost = async (req, res = response) => {
 
-    const { name, age } = req.body;
+
+    const { name, email, password, role, phone } = req.body;
+    const user = new User({ name, email, password, role, phone });
+
+
+    //Encriptar la contraseña
+    const salt = bcryptjs.genSaltSync(10);
+    user.password = bcryptjs.hashSync(password, salt);
+
+    //Guardar en DB
+    await user.save();
+
 
     res.status(201).json({
         ok: true,
         msg: 'Post api',
-        name,
-        age
+        user
     });
 };
 
-const usersDelete = (req, res = response) => {
+const usersDelete = async(req, res = response) => {
+    const {id} = req.params;
+   
+const user = await User.findByIdAndUpdate(id, {status: false});
+
+const userAuth  = req.user;
+
     res.json({
         ok: true,
-        msg: 'Delete api'
+        user,
+        userAuth
     });
 };
 
